@@ -19,6 +19,7 @@ package com.android.volley.toolbox;
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.Request.Method;
+import com.android.volley.StreamableRequest;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -34,11 +35,13 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpTrace;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -145,11 +148,22 @@ public class HttpClientStack implements HttpStack {
 
     private static void setEntityIfNonEmptyBody(HttpEntityEnclosingRequestBase httpRequest,
             Request<?> request) throws AuthFailureError {
-        byte[] body = request.getBody();
-        if (body != null) {
-            HttpEntity entity = new ByteArrayEntity(body);
-            httpRequest.setEntity(entity);
+
+        if (request instanceof StreamableRequest) {
+            StreamableRequest streamableRequest = (StreamableRequest) request;
+            InputStream body = streamableRequest.getBodyStream();
+            if (body != null) {
+                HttpEntity entity = new InputStreamEntity(body, -1L);
+                httpRequest.setEntity(entity);
+            }
+        } else {
+            byte[] body = request.getBody();
+            if (body != null) {
+                HttpEntity entity = new ByteArrayEntity(body);
+                httpRequest.setEntity(entity);
+            }
         }
+
     }
 
     /**

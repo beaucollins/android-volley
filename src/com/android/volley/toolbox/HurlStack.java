@@ -19,6 +19,7 @@ package com.android.volley.toolbox;
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.Request.Method;
+import com.android.volley.StreamableRequest;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -33,6 +34,7 @@ import org.apache.http.message.BasicStatusLine;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
@@ -231,15 +233,40 @@ public class HurlStack implements HttpStack {
         }
     }
 
+    private static int BUFFER_SIZE = 1024 * 1024;
+
     private static void addBodyIfExists(HttpURLConnection connection, Request<?> request)
             throws IOException, AuthFailureError {
-        byte[] body = request.getBody();
-        if (body != null) {
-            connection.setDoOutput(true);
-            connection.addRequestProperty(HEADER_CONTENT_TYPE, request.getBodyContentType());
-            DataOutputStream out = new DataOutputStream(connection.getOutputStream());
-            out.write(body);
-            out.close();
+
+        if (request instanceof StreamableRequest) {
+            StreamableRequest streamableRequest = (StreamableRequest)request;
+            InputStream body = streamableRequest.getBodyStream();
+            if (body != null) {
+                connection.setDoOutput(true);
+                connection.addRequestProperty(HEADER_CONTENT_TYPE, request.getBodyContentType());
+                OutputStream out = connection.getOutputStream();
+                byte[] buffer = new byte[BUFFER_SIZE];
+                int len;
+                while((len = body.read(buffer)) != -1) {
+                    out.write(buffer, 0, len);
+                }
+
+                body.close();
+                out.close();
+
+            }
+
+
+        } else {
+            byte[] body = request.getBody();
+            if (body != null) {
+                connection.setDoOutput(true);
+                connection.addRequestProperty(HEADER_CONTENT_TYPE, request.getBodyContentType());
+                DataOutputStream out = new DataOutputStream(connection.getOutputStream());
+                out.write(body);
+                out.close();
+            }
         }
+
     }
 }
